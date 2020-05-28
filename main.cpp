@@ -1,27 +1,36 @@
+/**
+ * Purpose: Approximate EMF induced by ellipse deformation
+ *
+ * @author Kostadin Devedzhiev
+ * @version 1.0 05/27/2020
+ */
 #include <iostream>
 #include<iomanip>
 #include <cmath>
 #include<limits>
-
-
 #include<math.h>
 
 using namespace std;
-
 const long double epsilon = std::numeric_limits<long double>::epsilon();
 
 /**
- * Returns the the area of an ellipse.
- * @param a length of vertical half-axis
- * @param b length of horizontal half-axis
- * @return Area of an ellipse
+ * Calculates the Area of an ellipse.
+ * @param a The length of vertical half-axis.
+ * @param b The length of horizontal half-axis.
+ * @return The area of an ellipse.
  */
-long double area(long double a, long double b) {
+long double Area(long double a, long double b) {
     return M_PI * a * b;
 }
 
-
-long double Exact(long double a, long double b, int n) {
+/**
+ * Calculates the circumference of an ellipse using the exact series.
+ *
+ * @param a The length of vertical half-axis.
+ * @param b The length of horizontal half-axis.
+ * @return The circumference of an ellipse.
+ */
+long double ExactCircumference(long double a, long double b, int n) {
     if (a < b) {
         long double temp = a;
         a = b;
@@ -30,95 +39,89 @@ long double Exact(long double a, long double b, int n) {
     long double e = sqrt(1 - b * b / (a * a));
     long double s, len;
     long double fact = 1;
-    int i;
+    int i = 1;
     len = 1;
-    for (i = 1; i < n; i++) {
+    while (1) {
+        if (i == n) {
+            break;
+        }
         fact *= (2 * i * (2 * i - 1));
         fact /= i;
         fact /= i;
         fact /= 4;
-
         s = fact * fact;
-
         s *= -pow(e, (2.0 * i));
         s /= (2.0 * i - 1);
         len += s;
+        i++;
     }
     len *= 2 * M_PI * a;
     return (len);
 }
 
-long double circumference(long double a, long double b) {
+/**
+ * Calculates the circumference of an ellipse using the naive formula
+ * @param a The length of vertical half-axis.
+ * @param b The length of horizontal half-axis.
+ * @return The circumference of an ellipse
+ */
+long double NaiveCircumference(long double a, long double b) {
     return M_PI * (a + b) * (3 * ((a - b) * (a - b)) /
                              ((a + b) * (a + b) * (sqrt(-3 * ((a - b) * (a - b)) / ((a + b) * (a + b)) + 4) + 10)) + 1);
 }
 
-long double b_f_naive(long double a_0, long double b_0, long double a_f) {
-    return sqrt((circumference(a_0, b_0) * circumference(a_0, b_0) - 2 * M_PI * M_PI * a_f * a_f)) / (sqrt(2) * M_PI);
+/**
+ * Finds the length of the horizontal semi-axis using the naive circumference.
+ * @param a_0 Initial value of the vertical semi-axis.
+ * @param b_0 Initial value of the horizontal semi-axis.
+ * @param a_f Final value of the vertical semi-axis.
+ * @return The final length of the horizontal semi-axis.
+ */
+long double FindBNaive(long double a_0, long double b_0, long double a_f) {
+    return sqrt((NaiveCircumference(a_0, b_0) * NaiveCircumference(a_0, b_0) - 2 * M_PI * M_PI * a_f * a_f)) /
+           (sqrt(2) * M_PI);
 }
 
-long double
-dFlux(long double B_0, long double B_f, long double a_0, long double a_f, long double b_0, long double b_f) {
-    return B_f * area(a_f, b_f) - B_0 * area(a_0, b_0);
+/**
+ *Finds the change in flux.
+ * @param B_0 The initial magnetic field.
+ * @param B_f The final magnetic field.
+ * @param a_0 Initial length of the vertical semi-axis.
+ * @param a_f Final length of the vertical semi-axis.
+ * @param b_0 Initial length of the horizontal semi-axis.
+ * @param b_f Final length of the horizontal semi-axis.
+ * @return Returns the change in flux.
+ */
+long double DeltaFlux(long double B_0, long double B_f, long double a_0, long double a_f, long double b_0, long double b_f) {
+    return B_f * Area(a_f, b_f) - B_0 * Area(a_0, b_0);
 }
-
-long double dT(long double t_0, long double t_f) {
+/**
+ * Finds the change in time.
+ * @param t_0 The intial time.
+ * @param t_f The final time.
+ * @return Returns the change in time.
+ */
+long double DeltaTime(long double t_0, long double t_f) {
     return t_f - t_0;
 }
-
-long double emf(long double dFlux, long double dT) {
-    return dFlux / dT;
+/**
+ * Finds the induced EMF.
+ * @param DeltaFlux The change in flux.
+ * @param DeltaTime The change in time.
+ * @return Returns the induced EMF.
+ */
+long double Emf(long double DeltaFlux, long double DeltaTime) {
+    return DeltaFlux / DeltaTime;
 }
-
-long double binarySearchApprox(long double l, long double r, long double C, long double a_f, int max_iterations) {
-    long double left_approximation;
-    long double right_approximation;
-    long double mid_approximation;
-    long double old_m = 0;
-    int count_iterations = 0;
-    while (1) {
-        long double m = (r + l) / 2;
-
-        // Check if x is present at mid
-        if (a_f > l)
-            left_approximation = circumference(a_f, l);
-        else
-            left_approximation = circumference(l, a_f);
-        if (a_f > l)
-            right_approximation = circumference(a_f, r);
-        else
-            right_approximation = circumference(r, a_f);
-        if (a_f > l)
-            mid_approximation = circumference(a_f, m);
-        else
-            mid_approximation = circumference(m, a_f);
-        if (abs(mid_approximation - C) <= epsilon) {
-            cout << "Error < epsilon" << mid_approximation << " " << C << " " << m << endl;
-            return m;
-        }
-        if (abs(left_approximation - C) <= abs(right_approximation - C))
-            r = m;
-        else
-            l = m;
-        count_iterations++;
-        if (count_iterations == max_iterations) {
-            cout << "Max iterations reached" << endl;
-            return m;
-        }
-        if (old_m == m) {
-            cout << "Max change has been reached" << endl;
-            return m;
-        }
-        old_m = m;
-        cout << "Iteration " << count_iterations << " m: " << m << endl;
-    }
-
-    // if we reach here, then element was
-    // not present
-    return -1;
-}
-
-long double binarySearchExact(long double l, long double C, long double a_f, int max_iterations) {
+/**
+ * Finds the exact value of the final length of the horizontal semi-axis.
+ * @param l The initial guess generated by the naive method.
+ * @param C  The actual circumference calculated with the exact series.
+ * @param a_f The final length of the vertical semi-axis.
+ * @param max_iterations The maximum number of iterations.
+ * @return Returns The exact value of the final length of the horizontal semi-axis.
+ */
+long double QuerySearch(long double l, long double C, long double a_f, int max_iterations) {
     long double r = l - -215.0 / 1000.0 * l;
     long double left_approximation;
     long double right_approximation;
@@ -127,22 +130,19 @@ long double binarySearchExact(long double l, long double C, long double a_f, int
     int count_iterations = 0;
     while (1) {
         long double m = (r + l) / 2;
-
-        // Check if x is present at mid
         if (a_f > l)
-            left_approximation = Exact(a_f, l, 10000);
+            left_approximation = ExactCircumference(a_f, l, 10000);
         else
-            left_approximation = Exact(l, a_f, 10000);
+            left_approximation = ExactCircumference(l, a_f, 10000);
         if (a_f > l)
-            right_approximation = Exact(a_f, r, 10000);
+            right_approximation = ExactCircumference(a_f, r, 10000);
         else
-            right_approximation = Exact(r, a_f, 10000);
+            right_approximation = ExactCircumference(r, a_f, 10000);
         if (a_f > l)
-            mid_approximation = Exact(a_f, m, 10000);
+            mid_approximation = ExactCircumference(a_f, m, 10000);
         else
-            mid_approximation = Exact(m, a_f, 10000);
+            mid_approximation = ExactCircumference(m, a_f, 10000);
         if (abs(mid_approximation - C) <= epsilon) {
-            //cout << "Error < epsilon" << mid_approximation << " " << C << " " << m << endl;
             return m;
         }
         if (abs(left_approximation - C) <= abs(right_approximation - C))
@@ -151,97 +151,69 @@ long double binarySearchExact(long double l, long double C, long double a_f, int
             l = m;
         count_iterations++;
         if (count_iterations == max_iterations) {
-            //cout << "Max iterations reached" << endl;
             return m;
         }
         if (old_m == m) {
-            //cout << "Max change has been reached" << endl;
             return m;
         }
         old_m = m;
-        //cout << "Iteration " << count_iterations << " m: " << m << endl;
     }
-
-    // if we reach here, then element was
-    // not present
     return -1;
-
 }
-
+/**
+ * Generates data when the vertical axis is squeezed from 1m to 0.001m given a magentic field of 1T and time of 1s.
+*/
 void table() {
-
-    //                            a1,b1,af
-    long double combinations[5][3] = {
-            {10, 1, 5},
-            {9,  2, 5},
-            {8,  4, 5},
-            {7,  5, 5},
-            {6,  6, 5}
-    };
+    long double a[1000];
+    long double b[1000];
+    long double A[1000];
+    long double EMF[1000];
+    long double dA[1000];
+    long double da[1000];
+    long double db[1000];
     long double B_0 = 1;
     long double B_f = 1;
     long double t_0 = 0;
     long double t_f = 1;
     long double circumference;
     long int n = 100000;
-
-    for (int i = 0; i < 5; i++) {
-        long double a_0 = combinations[i][0];
-        long double b_0 = combinations[i][1];
-        long double a_f = combinations[i][2];
+    long double a_f = 1;
+    for (int i = 0; i < 1000; i++) {
+        long double a_0 = 1;
+        long double b_0 = 1;
+        a_f -= 0.001;
         if (a_0 >= b_0) {
-            circumference = Exact(a_0, b_0, n);
+            circumference = ExactCircumference(a_0, b_0, n);
         } else {
-            circumference = Exact(a_0, b_0, n);
+            circumference = ExactCircumference(a_0, b_0, n);
         }
-        long double b_f = b_f_naive(a_0, b_0, a_f);
-        b_f = binarySearchExact(b_f, circumference, a_f, n);
-        long double dF = dFlux(B_0, B_f, a_0, a_f, b_0, b_f);
-        long double E = emf(dF, dT(t_0, t_f));
+        long double b_f = FindBNaive(a_0, b_0, a_f);
+        b_f = QuerySearch(b_f, circumference, a_f, n);
+        long double dF = DeltaFlux(B_0, B_f, a_0, a_f, b_0, b_f);
+        long double E = Emf(dF, DeltaTime(t_0, t_f));
         cout
                 << "-----------------------------------------------------------------------------------------------------------------------"
                 << i + 1 << endl;
         cout << "B_0: " << B_0 << endl;
         cout << "B_f: " << B_f << endl;
-        cout << "dT: " << dT(t_0, t_f) << endl;
+        cout << "DeltaTime: " << DeltaTime(t_0, t_f) << endl;
         cout << "a_0: " << a_0 << endl;
         cout << "b_0: " << b_0 << endl;
         cout << "a_f: " << a_f << endl;
         cout << "b_f: " << b_f << endl;
         cout << "C:   " << circumference << endl;
-        cout << "A_0: " << area(a_0, b_0) << endl;
-        cout << "A_f: " << area(a_f, b_f) << endl;
+        cout << "A_0: " << Area(a_0, b_0) << endl;
+        cout << "A_f: " << Area(a_f, b_f) << endl;
         cout << "EMF: " << E << endl;
-
+        a[i] = a_f;
+        b[i] = b_f;
+        A[i] = Area(a_f, b_f);
+        dA[i] = Area(a_f, b_f) - Area(a_0, b_0);
+        da[i] = abs(a_f - a_0);
+        db[i] = abs(b_f - b_0);
+        EMF[i] = E;
     }
 }
-
-void test() {
-    long double C = Exact(10, 1, 10000000);
-
-    cout << "C: " << C << endl;
-    long double b_final = b_f_naive(10, 1, 5);
-    cout << "b_final approximation: " << b_final << endl;
-    long double max_error = -215.0 / 1000.0 * b_final;
-    cout << "b_final - max_error: " << b_final - max_error << endl;
-    long double b_final_computed_exact = binarySearchExact(b_final, C, 5, 10000);
-    long double b_final_computed_approx = binarySearchApprox(b_final, b_final - max_error, circumference(10, 1), 5,
-                                                             10000);
-    cout << endl << "b_f approx: " << b_final_computed_exact << endl;
-    cout
-            << "------------------------------------| EXACT |-------------------------------------------------------------------------"
-            << endl;
-    cout << endl << "Computed Circumference: "
-         << Exact(b_final_computed_exact, 5, 10000000);
-    cout << endl << "Actual Circumference:   " << C << endl;
-    cout << "------------------------------| Approximation |---------------------------------------" << endl;
-
-    cout << endl << "Computed Circumference: " << circumference(b_final_computed_approx, 5);
-    cout << endl << "Actual Circumference:   " << circumference(10, 1) << endl;
-
-
-}
-
 int main() {
     cout << std::setprecision(64) << fixed;
     table();
